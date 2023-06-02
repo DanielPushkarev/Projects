@@ -3,14 +3,14 @@ from django.contrib.auth.models import User
 from django.db.models import Sum
 
 class Post(models.Model):
-    Positions = [
+    positions = [
         ('Novost', 'Новость'),
         ('Article', 'Статья')
     ]
-    Author = models.ForeignKey(Author, on_delete=models.CASCADE)
-    field_choice = models.CharField(max_length=20, choices=Positions, default='Article')
+    author = models.ForeignKey('Author', on_delete=models.CASCADE)
+    field_choice = models.CharField(max_length=20, choices=positions, default='Article')
     autodata = models.DateTimeField(auto_now_add=True)
-    postCategory = models.ManyToManyField(Category, through='PostCategory')
+    post_category = models.ManyToManyField('Category', through='PostCategory')
     title = models.CharField(max_length=128)
     text = models.TextField()
     ranking = models.SmallIntegerField(default=0)
@@ -27,7 +27,7 @@ class Post(models.Model):
         return self.text[0:128] + '...'
 
 class Comment(models.Model):
-    Post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
     comment_1 = models.ForeignKey(User, on_delete=models.CASCADE)
     text = models.TextField()
     date = models.DateTimeField(auto_now_add=True)
@@ -42,15 +42,15 @@ class Comment(models.Model):
         self.save()
 
 class Author(models.Model):
-    User = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     ranking_user = models.IntegerField(default=0)
 
     def update_rating(self):
-        Pr = Post.objects.filter(author=self).aggregate(Sum('_ranking'))['_ranking__sum'] * 3
-        Co = Comment.objects.filter(User=self.User).aggregate(Sum('_ranking'))['_ranking__sum'])
-        Co_under = Comment.objects.filter(Post__Author__User=self.User).aggregate(Sum('_ranking'))['_ranking__sum'])
+        rating_of_posts = Post.objects.filter(author=self).aggregate(Sum('_ranking'))['_ranking__sum'] * 3
+        rating_of_comments = Comment.objects.filter(user=self.user).aggregate(Sum('_ranking'))['_ranking__sum']
+        rating_of_comments_by_others = Comment.objects.filter(post__author__user=self.user).aggregate(Sum('_ranking'))['_ranking__sum']
 
-        self.ranking_user = Pr + Co + Co_under
+        self.ranking_user = rating_of_posts + rating_of_comments + rating_of_comments_by_others
         self.save()
 
 class Category(models.Model):
